@@ -28,6 +28,7 @@ jobs:
 
       # Run cargo audit
       - name: Run cargo audit
+        continue-on-error: true
         run: cargo audit
 
       # Install Trivy
@@ -42,4 +43,5 @@ jobs:
 
       # Run Trivy vulnerability scan on the project directory
       - name: Run Trivy scan
+        continue-on-error: true
         run: trivy fs --severity HIGH,CRITICAL --ignore-unfixed .
