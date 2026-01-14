@@ -1,0 +1,42 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- checkout: self
+
+# Install Rust (stable) using rustup
+- script: |
+    curl https://sh.rustup.rs -sSf | sh -s -- -y
+    echo "##vso[task.setvariable variable=PATH]$HOME/.cargo/bin:$PATH"
+    rustc --version
+    cargo --version
+  displayName: 'Install Rust toolchain'
+
+# Install cargo-audit
+- script: |
+    cargo install cargo-audit
+  displayName: 'Install cargo-audit'
+
+# Run cargo audit (do not fail pipeline)
+- script: |
+    cargo audit || true
+  displayName: 'Run cargo audit'
+
+# Install Trivy
+- script: |
+    sudo apt-get update
+    sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+    wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+    echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" \
+      | sudo tee /etc/apt/sources.list.d/trivy.list
+    sudo apt-get update
+    sudo apt-get install -y trivy
+  displayName: 'Install Trivy'
+
+# Run Trivy filesystem scan (do not fail pipeline)
+- script: |
+    trivy fs --severity UNKNOWN,MEDIUM,HIGH,CRITICAL . || true
+  displayName: 'Run Trivy scan'
