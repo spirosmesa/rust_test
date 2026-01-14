@@ -1,0 +1,27 @@
+stages:
+  - security
+
+security-scan:
+  stage: security
+  image: rust:latest   # Provides Rust toolchain + cargo
+  only:
+    - main
+    - merge_requests
+  before_script:
+    # Update packages and install tools needed for Trivy
+    - apt-get update
+    - apt-get install -y wget apt-transport-https gnupg lsb-release
+    # Install Trivy
+    - wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+    - echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" > /etc/apt/sources.list.d/trivy.list
+    - apt-get update
+    - apt-get install -y trivy
+    # Install cargo-audit
+    - cargo install cargo-audit
+
+  script:
+    # Run cargo audit (ignore failures, similar to continue-on-error)
+    - cargo audit || echo "cargo audit found issues (non-fatal in this pipeline)"
+    # Run Trivy filesystem scan (ignore failures, similar to continue-on-error)
+    - trivy fs --severity UNKNOWN,MEDIUM,HIGH,CRITICAL . || echo "Trivy found issues (non-fatal in this pipeline)"
+  allow_failure: true
