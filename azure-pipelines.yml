@@ -22,8 +22,15 @@ steps:
 
 # Run cargo audit (do not fail pipeline)
 - script: |
-    cargo audit || true
+    cargo audit --json > cargo-audit-report.json || true
   displayName: 'Run cargo audit'
+
+# Publish cargo-audit artifact
+- task: PublishPipelineArtifact@1
+  displayName: 'Publish cargo-audit report'
+  inputs:
+    targetPath: 'cargo-audit-report.json'
+    artifact: 'cargo-audit-report'
 
 # Install Trivy
 - script: |
@@ -38,5 +45,12 @@ steps:
 
 # Run Trivy filesystem scan (do not fail pipeline)
 - script: |
-    trivy fs --severity UNKNOWN,MEDIUM,HIGH,CRITICAL . || true
+    trivy fs --format json --output trivy-report.json . || true
   displayName: 'Run Trivy scan'
+
+# Publish Trivy artifact
+- task: PublishPipelineArtifact@1
+  displayName: 'Publish Trivy report'
+  inputs:
+    targetPath: 'trivy-report.json'
+    artifact: 'trivy-report'
