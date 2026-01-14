@@ -1,27 +1,67 @@
 stages:
   - security
 
-security-scan:
-  stage: security
-  image: rust:latest   # Provides Rust toolchain + cargo
-  only:
-    - main
-    - merge_requests
-  before_script:
-    # Update packages and install tools needed for Trivy
-    - apt-get update
-    - apt-get install -y wget apt-transport-https gnupg lsb-release
-    # Install Trivy
-    - wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor -o /usr/share/keyrings/trivy.gpg
-    - echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" > /etc/apt/sources.list.d/trivy.list
-    - apt-get update
-    - apt-get install -y trivy
-    # Install cargo-audit
-    - cargo install cargo-audit
+variables:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-Dwarnings"
 
+cache:
+  key: "${CI_PROJECT_NAME}"
+  paths:
+    - target/
+    - .cargo/registry/
+    - .cargo/git/
+
+# ---------- Security: cargo-audit (non-blocking) ----------
+cargo_audit:
+  stage: security
+  image: rust:1.76
+  before_script:
+    - cargo install cargo-audit --locked || true
   script:
-    # Run cargo audit (ignore failures, similar to continue-on-error)
-    - cargo audit || echo "cargo audit found issues (non-fatal in this pipeline)"
-    # Run Trivy filesystem scan (ignore failures, similar to continue-on-error)
-    - trivy fs --severity UNKNOWN,MEDIUM,HIGH,CRITICAL . || echo "Trivy found issues (non-fatal in this pipeline)"
+    # Run audit; never fail the pipeline
+    - |
+      set +e
+      cargo audit --json > cargo-audit-report.json
+      EXIT_CODE=$?
+      set -e
+      if [ "$EXIT_CODE" -ne 0 ]; then
+        echo "cargo audit reported issues (exit code: $EXIT_CODE), but the pipeline will NOT fail."
+      fi
+  artifacts:
+    when: always
+    paths:
+      - cargo-audit-report.json
   allow_failure: true
+  only:
+    - branches
+    - merge_requests
+
+# ---------- Security: Trivy filesystem scan (non-blocking) ----------
+trivy_fs_scan:
+  stage: security
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    # Run scan; never fail the pipeline
+    - |
+      set +e
+      trivy fs \
+        --exit-code 1 \
+        --format json \
+        --output trivy-results.json \
+        .
+      EXIT_CODE=$?
+      set -e
+      if [ "$EXIT_CODE" -ne 0 ]; then
+        echo "Trivy filesystem scan reported issues (exit code: $EXIT_CODE), but the pipeline will NOT fail."
+      fi
+  artifacts:
+    when: always
+    paths:
+      - trivy-results.json
+  allow_failure: true
+  only:
+    - branches
+    - merge_requests
