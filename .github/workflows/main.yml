@@ -44,4 +44,4 @@ jobs:
       # Run Trivy vulnerability scan on the project directory
       - name: Run Trivy scan
         continue-on-error: true
-        run: trivy fs --severity HIGH,CRITICAL --ignore-unfixed .
+        run: trivy fs --severity UNKNOWN,MEDIUM,HIGH,CRITICAL .
