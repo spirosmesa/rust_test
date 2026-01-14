@@ -50,7 +50,7 @@ trivy_fs_scan:
       trivy fs \
         --exit-code 1 \
         --format json \
-        --output trivy-results.json \
+        --output trivy-report.json \
         .
       EXIT_CODE=$?
       set -e
@@ -60,7 +60,7 @@ trivy_fs_scan:
   artifacts:
     when: always
     paths:
-      - trivy-results.json
+      - trivy-report.json
   allow_failure: true
   only:
     - branches

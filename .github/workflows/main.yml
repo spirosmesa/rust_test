@@ -29,7 +29,14 @@ jobs:
       # Run cargo audit
       - name: Run cargo audit
         continue-on-error: true
-        run: cargo audit
+        run: cargo audit --json > cargo-audit-report.json
+
+      # Persist cargo-audit report artifact
+      - name: Upload cargo-audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-audit-report
+          path: cargo-audit-report.json
 
       # Install Trivy
       - name: Install Trivy
@@ -44,4 +51,10 @@ jobs:
       # Run Trivy vulnerability scan on the project directory
       - name: Run Trivy scan
         continue-on-error: true
-        run: trivy fs --severity UNKNOWN,MEDIUM,HIGH,CRITICAL .
+        run: trivy fs --format json --output trivy-report.json .
+
+      - name: Upload Trivy report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.json
