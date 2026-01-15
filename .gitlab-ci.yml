@@ -19,7 +19,6 @@ cargo_audit:
   before_script:
     - cargo install cargo-audit --locked || true
   script:
-    # Run audit; never fail the pipeline
     - |
       set +e
       cargo audit --json > cargo-audit-report.json
@@ -44,7 +43,6 @@ trivy_fs_scan:
     name: aquasec/trivy:latest
     entrypoint: [""]
   script:
-    # Run scan; never fail the pipeline
     - |
       set +e
       trivy fs \
@@ -62,6 +60,26 @@ trivy_fs_scan:
     paths:
       - trivy-report.json
   allow_failure: true
+  only:
+    - branches
+    - merge_requests
+
+# ---------- Package security reports into a single ZIP ----------
+package_security_reports:
+  stage: security
+  image: alpine:latest
+  needs:
+    - job: cargo_audit
+      artifacts: true
+    - job: trivy_fs_scan
+      artifacts: true
+  script:
+    - apk add --no-cache zip
+    - zip security-reports.zip cargo-audit-report.json trivy-report.json
+  artifacts:
+    when: always
+    paths:
+      - security-reports.zip
   only:
     - branches
     - merge_requests
