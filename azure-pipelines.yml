@@ -25,13 +25,6 @@ steps:
     cargo audit --json > cargo-audit-report.json || true
   displayName: 'Run cargo audit'
 
-# Publish cargo-audit artifact
-- task: PublishPipelineArtifact@1
-  displayName: 'Publish cargo-audit report'
-  inputs:
-    targetPath: 'cargo-audit-report.json'
-    artifact: 'cargo-audit-report'
-
 # Install Trivy
 - script: |
     sudo apt-get update
@@ -48,9 +41,15 @@ steps:
     trivy fs --format json --output trivy-report.json . || true
   displayName: 'Run Trivy scan'
 
-# Publish Trivy artifact
+# Stage ONLY the required files
+- script: |
+    mkdir artifact-staging
+    mv cargo-audit-report.json trivy-report.json artifact-staging/
+  displayName: 'Stage security reports'
+
+# Publish artifact with FLAT ZIP CONTENTS
 - task: PublishPipelineArtifact@1
-  displayName: 'Publish Trivy report'
+  displayName: 'Publish security reports'
   inputs:
-    targetPath: 'trivy-report.json'
-    artifact: 'trivy-report'
+    targetPath: 'artifact-staging'
+    artifact: 'security-reports'
