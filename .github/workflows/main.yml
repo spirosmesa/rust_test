@@ -11,27 +11,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Install Rust toolchain
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
 
-      # Install cargo-audit
       - name: Install cargo-audit
         run: cargo install cargo-audit
 
-      # Run cargo audit
       - name: Run cargo audit
         continue-on-error: true
         run: cargo audit --json > cargo-audit-report.json
 
-      # Install Trivy
       - name: Install Trivy
         run: |
           sudo apt-get update
@@ -42,21 +37,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y trivy
 
-      # Run Trivy vulnerability scan
       - name: Run Trivy scan
         continue-on-error: true
         run: trivy fs --format json --output trivy-report.json .
 
-      # Create ZIP containing both reports
-      - name: Package security reports
-        run: |
-          zip security-reports.zip \
-            cargo-audit-report.json \
-            trivy-report.json
-
-      # Upload ZIP artifact
-      - name: Upload security reports artifact
+      # Upload BOTH files as ONE artifact (no manual zip)
+      - name: Upload security reports
         uses: actions/upload-artifact@v4
         with:
           name: security-reports
-          path: security-reports.zip
+          path: |
+            cargo-audit-report.json
+            trivy-report.json
